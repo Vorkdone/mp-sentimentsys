@@ -1,1 +1,115 @@
+import string
+from collections import Counter
+import matplotlib.pyplot as plt
+from nltk.corpus import stopwords
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+import nltk
+from transformers import pipeline
 
+# Download necessary NLTK data
+nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('vader_lexicon')
+
+# Initialize the Hugging Face emotion analyzer
+emotion_analyzer = pipeline(
+    "text-classification",
+    model="bhadresh-savani/distilbert-base-uncased-emotion",
+    return_all_scores=True
+)
+
+# Function to preprocess text
+def preprocess_text(text):
+    """Clean, tokenize, and lemmatize the input text."""
+    lower_case = text.lower()
+    cleaned_text = lower_case.translate(str.maketrans('', '', string.punctuation))
+    tokenized_words = word_tokenize(cleaned_text, "english")
+    final_words = [word for word in tokenized_words if word not in stopwords.words('english')]
+    lemma_words = [WordNetLemmatizer().lemmatize(word) for word in final_words]
+    return lemma_words
+
+# Function to analyze sentiment using NLTK
+def analyze_sentiment(sentiment_text):
+    """Analyze and return the sentiment of the input text."""
+    score = SentimentIntensityAnalyzer().polarity_scores(sentiment_text)
+    if score['neg'] > score['pos']:
+        return "Negative Sentiment"
+    elif score['neg'] < score['pos']:
+        return "Positive Sentiment"
+    else:
+        return "Neutral Sentiment"
+
+# Function to analyze emotions using a local emotion lexicon
+def analyze_emotions(words, emotion_file='emotions.txt'):
+    """Analyze and return emotion counts from the input words."""
+    emotion_list = []
+    try:
+        with open(emotion_file, 'r') as file:
+            for line in file:
+                word, emotion = line.strip().split(':')
+                if word in words:
+                    emotion_list.append(emotion)
+    except FileNotFoundError:
+        print(f"Error: {emotion_file} not found.")
+        return Counter()
+    except ValueError:
+        print("Error: Incorrect format in emotions file.")
+        return Counter()
+    return Counter(emotion_list)
+
+
+# Function to detect emotions using Hugging Face
+def detect_emotions(text):
+    """Analyze emotions using the pre-trained Hugging Face model."""
+    scores = emotion_analyzer(text)
+    emotions = {score['label']: score['score'] for score in scores[0]}
+    dominant_emotions = {key: value for key, value in emotions.items() if value > 0.2}
+    return dominant_emotions if dominant_emotions else "Low confidence in detected emotions."
+
+# Function to plot emotions
+def plot_emotions(emotion_counts):
+    """Plot a bar chart of the emotions."""
+    if emotion_counts:
+        plt.bar(emotion_counts.keys(), emotion_counts.values(), color='skyblue')
+        plt.title("Emotion Analysis")
+        plt.xlabel("Emotions")
+        plt.ylabel("Count")
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
+
+# Main program
+def main():
+    print("Welcome to the Sentiment and Emotion Analyzer!")
+    while True:
+        review = input("\nEnter a product review (or type 'exit' to quit): ")
+        if review.lower() == "exit":
+            print("Goodbye!")
+            break
+
+        # Analyze sentiment
+        sentiment = analyze_sentiment(review)
+        print(f"Sentiment: {sentiment}")
+
+        # Preprocess the review and analyze emotions using a local lexicon
+        processed_words = preprocess_text(review)
+        emotion_counts = analyze_emotions(processed_words)
+
+        # Display emotion counts and plot
+        if emotion_counts:
+            print("Emotion counts (from lexicon):", emotion_counts)
+            plot_emotions(emotion_counts)
+        else:
+            print("No emotions detected using lexicon.")
+
+        # Detect emotions using Hugging Face model
+        hf_emotions = detect_emotions(review)
+        print(f"Emotions detected (using Hugging Face model): {hf_emotions}")
+
+        print("-" * 40)
+
+if _name_ == "_main_":
+     main()
