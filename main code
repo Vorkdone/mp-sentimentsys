@@ -8,7 +8,7 @@ from nltk.tokenize import word_tokenize
 import nltk
 from transformers import pipeline
 
-# Download necessary NLTK data
+# Download necessary NLTK data (if not already downloaded)
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk.download('wordnet')
@@ -18,15 +18,17 @@ nltk.download('vader_lexicon')
 emotion_analyzer = pipeline(
     "text-classification",
     model="bhadresh-savani/distilbert-base-uncased-emotion",
-    return_all_scores=True
+    top_k=None  # Updated to avoid deprecation warning
 )
 
-# Function to preprocess text
+
+
+# Function to preprocess text (unchanged)
 def preprocess_text(text):
     """Clean, tokenize, and lemmatize the input text."""
     lower_case = text.lower()
     cleaned_text = lower_case.translate(str.maketrans('', '', string.punctuation))
-    tokenized_words = word_tokenize(cleaned_text, "english")
+    tokenized_words = word_tokenize(cleaned_text)
     final_words = [word for word in tokenized_words if word not in stopwords.words('english')]
     lemma_words = [WordNetLemmatizer().lemmatize(word) for word in final_words]
     return lemma_words
@@ -111,5 +113,5 @@ def main():
 
         print("-" * 40)
 
-if _name_ == "_main_":
-     main()
+if __name__ == "__main__":
+    main()
