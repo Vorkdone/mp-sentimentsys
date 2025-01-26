@@ -1,4 +1,4 @@
-import pandas as pd
+
 import string
 from collections import Counter
 import matplotlib.pyplot as plt
@@ -9,12 +9,16 @@ from nltk.tokenize import word_tokenize
 import nltk
 from transformers import pipeline
 
-# Load the Excel file containing emotions
+import pandas as pd
+import openpyxl
+print(openpyxl.__version__)
+
+# Load the Excel file
 file_path = r'C:\Users\konag\PycharmProjects\emotionpro\emotions.xlsx'  # Update this with your actual path
 data = pd.read_excel(file_path, engine='openpyxl')  # Specify the engine if needed
 
-# Strip whitespace from column names if necessary
-data.columns = data.columns.str.strip()
+# Display the first few rows of the data
+print(data.head())
 
 # Download necessary NLTK data (if not already downloaded)
 nltk.download('stopwords')
@@ -53,18 +57,22 @@ def analyze_sentiment(sentiment_text):
         return "Neutral Sentiment"
 
 
-# Function to analyze emotions using a local emotion lexicon loaded from Excel
-def analyze_emotions(words, emotion_data):
+# Function to analyze emotions using a local emotion lexicon
+def analyze_emotions(words, emotion_file='emotions.txt'):
     """Analyze and return emotion counts from the input words."""
     emotion_list = []
-
-    # Create a dictionary from the DataFrame for quick lookup
-    emotion_dict = dict(zip(emotion_data['word'], emotion_data['emotion']))
-
-    for word in words:
-        if word in emotion_dict:
-            emotion_list.append(emotion_dict[word])
-
+    try:
+        with open(emotion_file, 'r') as file:
+            for line in file:
+                word, emotion = line.strip().split(':')
+                if word in words:
+                    emotion_list.append(emotion)
+    except FileNotFoundError:
+        print(f"Error: {emotion_file} not found.")
+        return Counter()
+    except ValueError:
+        print("Error: Incorrect format in emotions file.")
+        return Counter()
     return Counter(emotion_list)
 
 
@@ -84,7 +92,7 @@ def plot_emotions(emotion_counts):
     # Define color mapping for different emotions
     color_mapping = {
         'happy': 'skyblue',
-        'sad': 'lightcoral',
+        'sad': 'light coral',
         'angry': 'tomato',
         'anxious': 'gold',
         'attached': 'lightgreen',
@@ -119,13 +127,13 @@ def main():
         sentiment = analyze_sentiment(review)
         print(f"Sentiment: {sentiment}")
 
-        # Preprocess the review and analyze emotions using the loaded DataFrame
+        # Preprocess the review and analyze emotions using a local lexicon
         processed_words = preprocess_text(review)
 
-        # Debugging output for processed words (optional)
-        # print("Processed words:", processed_words)
+        # Debugging output for processed words
+        print("Processed words:", processed_words)
 
-        emotion_counts = analyze_emotions(processed_words, data)
+        emotion_counts = analyze_emotions(processed_words)
 
         # Display emotion counts and plot
         if emotion_counts:
